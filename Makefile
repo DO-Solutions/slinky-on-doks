@@ -2,6 +2,11 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 TF := terraform -chdir=terraform
 
+# Accept DO_API_TOKEN as alias for DIGITALOCEAN_TOKEN (DigitalOcean SE convention)
+ifdef DO_API_TOKEN
+  export DIGITALOCEAN_TOKEN := $(DO_API_TOKEN)
+endif
+
 CLUSTER_NAME := $(shell $(TF) output -raw cluster_name 2>/dev/null || echo "slinky-poc")
 
 ifndef SLURMD_IMAGE
@@ -28,15 +33,32 @@ infra/destroy: ## Destroy all infrastructure
 	$(TF) destroy -auto-approve
 
 .PHONY: infra/kubeconfig
-infra/kubeconfig: ## Save kubeconfig from Terraform output to ~/.kube/config
+infra/kubeconfig: ## Save kubeconfig — from Terraform state, or via doctl for existing clusters
 	@mkdir -p ~/.kube
-	@$(TF) output -raw kubeconfig > ~/.kube/config
-	@echo "Kubeconfig saved to ~/.kube/config"
+	@KC=$$($(TF) output -raw kubeconfig 2>/dev/null) && \
+	if [ -n "$$KC" ]; then \
+		echo "$$KC" > ~/.kube/config && echo "Kubeconfig saved from Terraform."; \
+	else \
+		echo "Cluster is external — fetching kubeconfig via doctl..." && \
+		doctl kubernetes cluster kubeconfig save $(CLUSTER_NAME); \
+	fi
 	@kubectl get nodes
 
 .PHONY: infra/output
 infra/output: ## Print all Terraform outputs
 	$(TF) output
+
+.PHONY: infra/import-cluster
+infra/import-cluster: ## Import existing DOKS cluster into Terraform state (set CLUSTER_NAME=<name>)
+	@echo "Looking up cluster: $(CLUSTER_NAME)"
+	@CLUSTER_ID=$$(doctl kubernetes cluster get $(CLUSTER_NAME) --format ID --no-header 2>/dev/null) && \
+	[ -n "$$CLUSTER_ID" ] || { echo "ERROR: cluster '$(CLUSTER_NAME)' not found. Run: doctl kubernetes cluster list"; exit 1; } && \
+	VPC_ID=$$(doctl kubernetes cluster get $(CLUSTER_NAME) -o json 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['vpc_uuid'])") && \
+	[ -n "$$VPC_ID" ] || { echo "ERROR: could not read VPC UUID for cluster '$(CLUSTER_NAME)'"; exit 1; } && \
+	echo "Importing cluster $$CLUSTER_ID and VPC $$VPC_ID..." && \
+	$(TF) import digitalocean_kubernetes_cluster.main $$CLUSTER_ID || true && \
+	$(TF) import digitalocean_vpc.main $$VPC_ID || true && \
+	echo "Done. Run 'make infra/plan' to verify no cluster changes, then 'make up-from-existing'."
 
 # ── Prerequisites (Helm + Manifests) ─────────────────────────────────────────
 
@@ -73,8 +95,8 @@ prereqs/uninstall: ## Uninstall all prerequisites
 
 .PHONY: nfs/configure
 nfs/configure: ## Generate NFS PV from template, create namespace, apply PV + PVC
-	@NFS_HOST=$$($(TF) output -raw nfs_host) && \
-	NFS_PATH=$$($(TF) output -raw nfs_mount_path) && \
+	@NFS_HOST=$${NFS_HOST:-$$($(TF) output -raw nfs_host)} && \
+	NFS_PATH=$${NFS_PATH:-$$($(TF) output -raw nfs_mount_path)} && \
 	sed "s|__NFS_HOST__|$$NFS_HOST|g; s|__NFS_PATH__|$$NFS_PATH|g" \
 		manifests/nfs-pv.yaml.tpl > manifests/nfs-pv.yaml && \
 	kubectl apply -f manifests/slurm-namespace.yaml && \
@@ -115,8 +137,12 @@ nfs/status: ## Check PV/PVC binding status
 # ── Docker (Custom slurmd Image) ─────────────────────────────────────────────
 
 .PHONY: docker/build-slurmd
-docker/build-slurmd: ## Build custom slurmd image with ROCm/RCCL
+docker/build-slurmd: ## Build custom slurmd image with ROCm/RCCL (AMD)
 	docker build -t $(SLURMD_IMAGE) docker/slurmd-rocm/
+
+.PHONY: docker/build-slurmd-cuda
+docker/build-slurmd-cuda: ## Build custom slurmd image with CUDA/NCCL (NVIDIA)
+	docker build -t $(SLURMD_IMAGE) docker/slurmd-cuda/
 
 .PHONY: docker/push-slurmd
 docker/push-slurmd: ## Push slurmd image (login to your registry first)
@@ -155,8 +181,8 @@ fabric/uninstall: ## Remove fabric NADs and Multus
 .PHONY: gpu/discover-gres
 gpu/discover-gres: ## Discover GPU device paths via debug pod and save gres.conf line
 	@kubectl delete pod gpu-probe -n slurm --ignore-not-found 2>/dev/null && \
-	GPU_VENDOR=$$($(TF) output -raw gpu_vendor) && \
-	GPU_TAINT_KEY=$$($(TF) output -raw gpu_taint_key) && \
+	GPU_VENDOR=$${GPU_VENDOR:-$$($(TF) output -raw gpu_vendor)} && \
+	GPU_TAINT_KEY=$${GPU_TAINT_KEY:-$$($(TF) output -raw gpu_taint_key)} && \
 	GPU_RESOURCE_KEY="$$GPU_VENDOR.com/gpu" && \
 	echo "Deploying GPU probe pod (vendor=$$GPU_VENDOR)..." && \
 	sed "s|__GPU_TAINT_KEY__|$$GPU_TAINT_KEY|g; s|__GPU_RESOURCE_KEY__|$$GPU_RESOURCE_KEY|g" \
@@ -185,7 +211,7 @@ gpu/discover-gres: ## Discover GPU device paths via debug pod and save gres.conf
 
 .PHONY: slinky/create-db-secret
 slinky/create-db-secret: ## Create Slurm DB password secret from Terraform output
-	@DB_PASS=$$($(TF) output -raw db_password) && \
+	@DB_PASS=$${DB_PASSWORD:-$$($(TF) output -raw db_password)} && \
 	kubectl create secret generic slurm-db-password \
 		--namespace slurm \
 		--from-literal=password="$$DB_PASS" \
@@ -201,10 +227,10 @@ slinky/install-operator: ## Install slurm-operator with CRDs
 
 .PHONY: slinky/configure
 slinky/configure: ## Generate values-slurm.yaml from template using Terraform outputs
-	@DB_HOST=$$($(TF) output -raw db_host) && \
-	GPU_VENDOR=$$($(TF) output -raw gpu_vendor) && \
-	GPU_TAINT_KEY=$$($(TF) output -raw gpu_taint_key) && \
-	GPU_NODE_COUNT=$$($(TF) output -raw gpu_node_count) && \
+	@DB_HOST=$${DB_HOST:-$$($(TF) output -raw db_host)} && \
+	GPU_VENDOR=$${GPU_VENDOR:-$$($(TF) output -raw gpu_vendor)} && \
+	GPU_TAINT_KEY=$${GPU_TAINT_KEY:-$$($(TF) output -raw gpu_taint_key)} && \
+	GPU_NODE_COUNT=$${GPU_NODE_COUNT:-$$($(TF) output -raw gpu_node_count)} && \
 	IMG_REPO=$$(echo '$(SLURMD_IMAGE)' | sed 's|:[^:]*$$||') && \
 	IMG_TAG=$$(echo '$(SLURMD_IMAGE)' | sed 's|.*:||') && \
 	if [ -f helm/slinky/.gres-conf-line ]; then \
@@ -288,7 +314,7 @@ slurm/info: ## Run sinfo, squeue, and show partitions
 .PHONY: slurm/test-fabric
 slurm/test-fabric: ## Verify fabric NICs and RDMA devices on GPU workers
 	@echo "=== Fabric NICs ==="
-	kubectl exec -n slurm sts/slurm-worker-slinky -c slurmd -- ip link show | grep -E 'fabric[0-7]' || echo "No fabric interfaces found"
+	kubectl exec -n slurm sts/slurm-worker-slinky -c slurmd -- ip link show | grep -E 'fabric[0-9]|fabric1[0-5]' || echo "No fabric interfaces found"
 	@echo ""
 	@echo "=== RDMA Devices ==="
 	kubectl exec -n slurm sts/slurm-worker-slinky -c slurmd -- ibv_devices 2>/dev/null || echo "ibv_devices not available"
@@ -308,10 +334,22 @@ slurm/submit-rccl-1node: ## Submit single-node RCCL all-reduce test
 	kubectl exec -n slurm deploy/slurm-login-slinky -- sbatch /shared/jobs/rccl-allreduce-1node.sh
 
 .PHONY: slurm/submit-rccl-2node
-slurm/submit-rccl-2node: ## Submit multi-node RCCL all-reduce test
+slurm/submit-rccl-2node: ## Submit multi-node RCCL all-reduce test (AMD)
 	kubectl exec -i -n slurm deploy/slurm-login-slinky -c login -- tee /shared/jobs/rccl-allreduce-2node.sh < jobs/rccl-allreduce-2node.sh > /dev/null
 	kubectl exec -n slurm deploy/slurm-login-slinky -c login -- chmod +x /shared/jobs/rccl-allreduce-2node.sh
 	kubectl exec -n slurm deploy/slurm-login-slinky -- sbatch /shared/jobs/rccl-allreduce-2node.sh
+
+.PHONY: slurm/submit-nccl-1node
+slurm/submit-nccl-1node: ## Submit single-node NCCL all-reduce test (NVIDIA)
+	kubectl exec -i -n slurm deploy/slurm-login-slinky -c login -- tee /shared/jobs/nccl-allreduce-1node.sh < jobs/nccl-allreduce-1node.sh > /dev/null
+	kubectl exec -n slurm deploy/slurm-login-slinky -c login -- chmod +x /shared/jobs/nccl-allreduce-1node.sh
+	kubectl exec -n slurm deploy/slurm-login-slinky -- sbatch /shared/jobs/nccl-allreduce-1node.sh
+
+.PHONY: slurm/submit-nccl-2node
+slurm/submit-nccl-2node: ## Submit multi-node NCCL all-reduce test (NVIDIA)
+	kubectl exec -i -n slurm deploy/slurm-login-slinky -c login -- tee /shared/jobs/nccl-allreduce-2node.sh < jobs/nccl-allreduce-2node.sh > /dev/null
+	kubectl exec -n slurm deploy/slurm-login-slinky -c login -- chmod +x /shared/jobs/nccl-allreduce-2node.sh
+	kubectl exec -n slurm deploy/slurm-login-slinky -- sbatch /shared/jobs/nccl-allreduce-2node.sh
 
 .PHONY: slurm/test-restapi
 slurm/test-restapi: ## Test slurmrestd API endpoints
@@ -337,6 +375,9 @@ obs/prometheus: ## Port-forward Prometheus to localhost:9090
 
 .PHONY: up
 up: infra/apply infra/kubeconfig nfs/gpu-tuner prereqs/install nfs/configure fabric/install slinky/install-operator slinky/install-slurm ## Full deploy: infra -> kubeconfig -> gpu-tuner -> prereqs -> nfs -> fabric -> slinky
+
+.PHONY: up-from-existing
+up-from-existing: infra/apply infra/kubeconfig nfs/gpu-tuner prereqs/install nfs/configure fabric/install slinky/install-operator slinky/install-slurm ## Deploy Slinky on existing DOKS cluster (run make infra/import-cluster first)
 
 .PHONY: down
 down: slinky/uninstall fabric/uninstall prereqs/uninstall nfs/gpu-tuner-uninstall infra/destroy ## Full teardown: slinky -> fabric -> prereqs -> gpu-tuner -> infra

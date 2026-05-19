@@ -1,4 +1,5 @@
-# NetworkAttachmentDefinitions for DOKS fabric NICs (fabric0-fabric7).
+# NetworkAttachmentDefinitions for DOKS fabric NICs (fabric0-fabric15).
+# B300 nodes have 2 fabric NICs per GPU × 8 GPUs = 16 NICs total.
 # Each NAD uses the host-device CNI plugin to move the corresponding
 # host NIC into the pod network namespace via Multus.
 apiVersion: "k8s.cni.cncf.io/v1"
@@ -87,4 +88,92 @@ spec:
       "cniVersion": "0.3.1",
       "type": "host-device",
       "device": "fabric7"
+    }'
+---
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: roce-net-fabric8
+spec:
+  config: '{
+      "cniVersion": "0.3.1",
+      "type": "host-device",
+      "device": "fabric8"
+    }'
+---
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: roce-net-fabric9
+spec:
+  config: '{
+      "cniVersion": "0.3.1",
+      "type": "host-device",
+      "device": "fabric9"
+    }'
+---
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: roce-net-fabric10
+spec:
+  config: '{
+      "cniVersion": "0.3.1",
+      "type": "host-device",
+      "device": "fabric10"
+    }'
+---
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: roce-net-fabric11
+spec:
+  config: '{
+      "cniVersion": "0.3.1",
+      "type": "host-device",
+      "device": "fabric11"
+    }'
+---
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: roce-net-fabric12
+spec:
+  config: '{
+      "cniVersion": "0.3.1",
+      "type": "host-device",
+      "device": "fabric12"
+    }'
+---
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: roce-net-fabric13
+spec:
+  config: '{
+      "cniVersion": "0.3.1",
+      "type": "host-device",
+      "device": "fabric13"
+    }'
+---
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: roce-net-fabric14
+spec:
+  config: '{
+      "cniVersion": "0.3.1",
+      "type": "host-device",
+      "device": "fabric14"
+    }'
+---
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: roce-net-fabric15
+spec:
+  config: '{
+      "cniVersion": "0.3.1",
+      "type": "host-device",
+      "device": "fabric15"
     }'

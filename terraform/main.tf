@@ -1,6 +1,12 @@
+locals {
+  vpc_id     = var.existing_vpc_id != "" ? var.existing_vpc_id : digitalocean_vpc.main[0].id
+  cluster_id = var.existing_cluster_id != "" ? var.existing_cluster_id : digitalocean_kubernetes_cluster.main[0].id
+}
+
 # ── VPC ──────────────────────────────────────────────────────────────────────
 
 resource "digitalocean_vpc" "main" {
+  count    = var.existing_vpc_id == "" ? 1 : 0
   name     = "${var.project_name}-vpc"
   region   = var.region
   ip_range = var.vpc_cidr
@@ -9,10 +15,11 @@ resource "digitalocean_vpc" "main" {
 # ── DOKS Cluster ─────────────────────────────────────────────────────────────
 
 resource "digitalocean_kubernetes_cluster" "main" {
-  name    = var.project_name
-  region  = var.region
-  version = var.k8s_version
-  vpc_uuid = digitalocean_vpc.main.id
+  count    = var.existing_cluster_id == "" ? 1 : 0
+  name     = var.project_name
+  region   = var.region
+  version  = var.k8s_version
+  vpc_uuid = local.vpc_id
 
   cluster_subnet = var.cluster_subnet
   service_subnet = var.service_subnet
@@ -29,7 +36,8 @@ resource "digitalocean_kubernetes_cluster" "main" {
 # ── GPU Node Pool ─────────────────────────────────────────────────────────────
 
 resource "digitalocean_kubernetes_node_pool" "gpu" {
-  cluster_id = digitalocean_kubernetes_cluster.main.id
+  count      = var.gpu_node_count > 0 ? 1 : 0
+  cluster_id = local.cluster_id
   name       = "gpu"
   size       = var.gpu_node_size
   node_count = var.gpu_node_count
@@ -50,7 +58,7 @@ resource "digitalocean_database_cluster" "mysql" {
   size                 = var.db_size
   region               = var.region
   node_count           = var.db_node_count
-  private_network_uuid = digitalocean_vpc.main.id
+  private_network_uuid = local.vpc_id
 }
 
 resource "digitalocean_database_db" "slurm_acct" {
@@ -69,7 +77,7 @@ resource "digitalocean_database_firewall" "mysql" {
 
   rule {
     type  = "k8s"
-    value = digitalocean_kubernetes_cluster.main.id
+    value = local.cluster_id
   }
 }
 
@@ -79,6 +87,10 @@ resource "digitalocean_nfs" "shared" {
   region           = var.region
   name             = "${var.project_name}-nfs"
   size             = var.nfs_size_gib
-  vpc_id           = digitalocean_vpc.main.id
+  vpc_id           = local.vpc_id
   performance_tier = var.nfs_performance_tier
+
+  lifecycle {
+    ignore_changes = [performance_tier]
+  }
 }

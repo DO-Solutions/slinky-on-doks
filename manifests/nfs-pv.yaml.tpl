@@ -15,4 +15,7 @@ spec:
     server: __NFS_HOST__
     path: __NFS_PATH__
   mountOptions:
-    - nconnect=8
+    - vers=4.1
+    - nconnect=16
+    - rsize=1048576
+    - wsize=1048576

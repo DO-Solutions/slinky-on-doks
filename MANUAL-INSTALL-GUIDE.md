@@ -246,7 +246,7 @@ kubectl get pvc -n slurm slurm-nfs-pvc
 
 ## 5. RDMA Fabric Setup
 
-GPU nodes on DOKS have 8 dedicated fabric NICs (`fabric0`–`fabric7`) used for RoCE (RDMA over Converged Ethernet) — high-bandwidth, low-latency GPU-to-GPU communication across nodes. These NICs must be attached into Slurm worker pods so that RCCL/NCCL can use them for collective operations. See [Configure Multi-Node GPU Communication](https://docs.digitalocean.com/products/kubernetes/how-to/configure-multinode-gpus/) for background on DOKS fabric networking.
+B300 GPU nodes on DOKS have 16 dedicated fabric NICs (`fabric0`–`fabric15`, two per GPU) used for RoCE (RDMA over Converged Ethernet) — high-bandwidth, low-latency GPU-to-GPU communication across nodes. These NICs must be attached into Slurm worker pods so that RCCL/NCCL can use them for collective operations. See [Configure Multi-Node GPU Communication](https://docs.digitalocean.com/products/kubernetes/how-to/configure-multinode-gpus/) for background on DOKS fabric networking.
 
 This requires [Multus CNI](https://github.com/k8snetworkplumbingwg/multus-cni) (to attach multiple network interfaces to pods) and NetworkAttachmentDefinitions (NADs) that map each fabric NIC.
 
@@ -277,7 +277,7 @@ spec:
     }'
 ```
 
-All 8 NADs (`roce-net-fabric0` through `roce-net-fabric7`) follow the same pattern, changing only the name and device field. Apply them all at once from the provided manifest:
+All 16 NADs (`roce-net-fabric0` through `roce-net-fabric15`) follow the same pattern, changing only the name and device field. Apply them all at once from the provided manifest:
 
 ```bash
 kubectl apply -n slurm -f manifests/fabric-nads.yaml
@@ -287,7 +287,7 @@ kubectl apply -n slurm -f manifests/fabric-nads.yaml
 
 ```bash
 kubectl get net-attach-def -n slurm
-# Should show 8 NADs: roce-net-fabric0 through roce-net-fabric7
+# Should show 16 NADs: roce-net-fabric0 through roce-net-fabric15
 ```
 
 ---
@@ -473,6 +473,14 @@ nodesets:
           rdma/fabric5: 1
           rdma/fabric6: 1
           rdma/fabric7: 1
+          rdma/fabric8: 1
+          rdma/fabric9: 1
+          rdma/fabric10: 1
+          rdma/fabric11: 1
+          rdma/fabric12: 1
+          rdma/fabric13: 1
+          rdma/fabric14: 1
+          rdma/fabric15: 1
         limits:
           amd.com/gpu: 8
           rdma/fabric0: 1
@@ -483,6 +491,19 @@ nodesets:
           rdma/fabric5: 1
           rdma/fabric6: 1
           rdma/fabric7: 1
+          rdma/fabric8: 1
+          rdma/fabric9: 1
+          rdma/fabric10: 1
+          rdma/fabric11: 1
+          rdma/fabric12: 1
+          rdma/fabric13: 1
+          rdma/fabric14: 1
+          rdma/fabric15: 1
+      securityContext:
+        privileged: true
+        capabilities:
+          add:
+            - IPC_LOCK
       volumeMounts:
         - name: shared-nfs
           mountPath: /shared
@@ -494,7 +515,7 @@ nodesets:
       configMap:
         State: UP
         MaxTime: UNLIMITED
-    # Multus annotation attaches all 8 fabric NICs into the pod
+    # Multus annotation attaches all 16 fabric NICs into the pod (2 per GPU on B300)
     metadata:
       annotations:
         k8s.v1.cni.cncf.io/networks: >-
@@ -505,7 +526,15 @@ nodesets:
           roce-net-fabric4@fabric4,
           roce-net-fabric5@fabric5,
           roce-net-fabric6@fabric6,
-          roce-net-fabric7@fabric7
+          roce-net-fabric7@fabric7,
+          roce-net-fabric8@fabric8,
+          roce-net-fabric9@fabric9,
+          roce-net-fabric10@fabric10,
+          roce-net-fabric11@fabric11,
+          roce-net-fabric12@fabric12,
+          roce-net-fabric13@fabric13,
+          roce-net-fabric14@fabric14,
+          roce-net-fabric15@fabric15
     podSpec:
       nodeSelector:
         doks.digitalocean.com/gpu-brand: amd  # <-- REPLACE with nvidia for NVIDIA nodes

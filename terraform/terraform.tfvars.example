@@ -1,19 +1,36 @@
-region       = "atl1"
+region       = "ric1"
 project_name = "slinky-poc"
 
-# gpu_vendor         = "amd"
-# gpu_node_size      = "gpu-mi325x1-256gb"
-# gpu_node_count     = 2
-# vpc_cidr           = "10.100.32.0/20"
-# k8s_version        = "1.34.1-do.5"
-# cluster_subnet     = "10.156.0.0/16"
-# service_subnet     = "10.157.0.0/16"
-# mgmt_node_size     = "c-4"
-# mgmt_node_count    = 3
-# db_size            = "db-s-1vcpu-2gb"
-# db_node_count      = 1
-# db_name            = "slurm_acct"
-# db_user            = "slurm"
+# ── GPU (NVIDIA B300 — Richmond) ──────────────────────────────────────────────
+gpu_vendor    = "nvidia"
+gpu_node_size = "gpu-b300x8-2304gb-fabric-contracted"
+# gpu_node_count = 2
+
+# ── Management Nodes ──────────────────────────────────────────────────────────
+# mgmt_node_size  = "s-4vcpu-8gb-intel"
+# mgmt_node_count = 3
+
+# ── Kubernetes ────────────────────────────────────────────────────────────────
+# k8s_version    = "1.35.1-do.3"
+# cluster_subnet = "10.156.0.0/16"
+# service_subnet = "10.157.0.0/16"
+# vpc_cidr       = "10.100.32.0/20"
+
+# ── Database ──────────────────────────────────────────────────────────────────
+# db_size              = "db-amd-1vcpu-2gb"
+# db_node_count        = 1
+# db_name              = "slurm_acct"
+# db_user              = "slurm"
 # db_mysql_auth_plugin = "caching_sha2_password"
+
+# ── NFS ───────────────────────────────────────────────────────────────────────
 # nfs_size_gib         = 1024
-# nfs_performance_tier = "standard"
+# nfs_performance_tier = "high"
+
+# ── Bring-Your-Own-Cluster (optional) ────────────────────────────────────────
+# Set these if you already have a DOKS cluster created via the DO console.
+# When set, terraform apply only creates MySQL and NFS — not the cluster or VPC.
+# Leave commented out to provision everything from scratch.
+#
+# existing_cluster_id = ""   # DO console → Kubernetes → cluster → ID field
+# existing_vpc_id     = ""   # DO console → Networking → VPC → ID field

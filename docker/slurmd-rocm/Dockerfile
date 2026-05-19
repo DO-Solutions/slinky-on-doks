@@ -1,6 +1,6 @@
 # Custom slurmd image with ROCm userspace, RCCL, rccl-tests, and ANP plugin
 # for RDMA fabric validation on DOKS MI325X nodes.
-FROM ghcr.io/slinkyproject/slurmd:25.11-ubuntu24.04
+FROM ghcr.io/slinkyproject/slurmd:25.11.5-ubuntu24.04
 
 USER root
 

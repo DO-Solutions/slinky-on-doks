@@ -2,40 +2,40 @@
 
 output "cluster_id" {
   description = "DOKS cluster ID"
-  value       = digitalocean_kubernetes_cluster.main.id
+  value       = local.cluster_id
 }
 
 output "cluster_endpoint" {
   description = "DOKS cluster API endpoint"
-  value       = digitalocean_kubernetes_cluster.main.endpoint
+  value       = length(digitalocean_kubernetes_cluster.main) > 0 ? digitalocean_kubernetes_cluster.main[0].endpoint : ""
 }
 
 output "cluster_name" {
   description = "DOKS cluster name"
-  value       = digitalocean_kubernetes_cluster.main.name
+  value       = length(digitalocean_kubernetes_cluster.main) > 0 ? digitalocean_kubernetes_cluster.main[0].name : var.project_name
 }
 
 output "kubeconfig" {
-  description = "Kubeconfig for the DOKS cluster"
-  value       = digitalocean_kubernetes_cluster.main.kube_config[0].raw_config
+  description = "Kubeconfig for the DOKS cluster (empty when using existing_cluster_id)"
+  value       = length(digitalocean_kubernetes_cluster.main) > 0 ? digitalocean_kubernetes_cluster.main[0].kube_config[0].raw_config : ""
   sensitive   = true
 }
 
 output "k8s_version" {
   description = "Kubernetes version"
-  value       = digitalocean_kubernetes_cluster.main.version
+  value       = length(digitalocean_kubernetes_cluster.main) > 0 ? digitalocean_kubernetes_cluster.main[0].version : ""
 }
 
 # ── VPC ──────────────────────────────────────────────────────────────────────
 
 output "vpc_id" {
   description = "VPC ID"
-  value       = digitalocean_vpc.main.id
+  value       = local.vpc_id
 }
 
 output "vpc_cidr" {
   description = "VPC CIDR block"
-  value       = digitalocean_vpc.main.ip_range
+  value       = length(digitalocean_vpc.main) > 0 ? digitalocean_vpc.main[0].ip_range : ""
 }
 
 # ── Database ─────────────────────────────────────────────────────────────────

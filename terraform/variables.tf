@@ -1,7 +1,7 @@
 variable "region" {
   description = "DigitalOcean region"
   type        = string
-  default     = "atl1"
+  default     = "ric1"
 }
 
 variable "project_name" {
@@ -53,7 +53,7 @@ variable "mgmt_node_count" {
 variable "gpu_node_size" {
   description = "Droplet size for GPU worker node pool"
   type        = string
-  default     = "gpu-mi325x1-256gb"
+  default     = "gpu-b300x8-2304gb-fabric-contracted"
 }
 
 variable "gpu_node_count" {
@@ -65,7 +65,7 @@ variable "gpu_node_count" {
 variable "gpu_vendor" {
   description = "GPU vendor (amd or nvidia) — determines taints and labels"
   type        = string
-  default     = "amd"
+  default     = "nvidia"
 
   validation {
     condition     = contains(["nvidia", "amd"], var.gpu_vendor)
@@ -117,4 +117,18 @@ variable "nfs_performance_tier" {
   description = "NFS performance tier"
   type        = string
   default     = "high"
+}
+
+# ── Bring-Your-Own-Cluster ────────────────────────────────────────────────────
+
+variable "existing_cluster_id" {
+  description = "ID of an existing DOKS cluster. When set, skips cluster and VPC creation. Use with existing_vpc_id."
+  type        = string
+  default     = ""
+}
+
+variable "existing_vpc_id" {
+  description = "ID of the existing VPC that contains the cluster. Required when existing_cluster_id is set."
+  type        = string
+  default     = ""
 }
