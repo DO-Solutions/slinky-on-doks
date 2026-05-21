@@ -39,7 +39,8 @@ loginsets:
     enabled: true
     login:
       image:
-        tag: "25.11.5-ubuntu24.04"
+        repository: __LOGIN_IMAGE_REPO__
+        tag: "__LOGIN_IMAGE_TAG__"
       volumeMounts:
         - name: shared-nfs
           mountPath: /shared

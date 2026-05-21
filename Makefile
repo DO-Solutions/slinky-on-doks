@@ -14,6 +14,10 @@ ifndef SLURMD_IMAGE
   SLURMD_IMAGE := slurmd-rocm:latest
 endif
 
+# LOGIN_IMAGE is optional. When unset, slinky/configure falls back to the
+# upstream login image (ghcr.io/slinkyproject/login). Set it to use a custom
+# login image with developer tools: export LOGIN_IMAGE=ghcr.io/yourorg/slurm-login:25.11
+
 # ── Infrastructure (Terraform) ───────────────────────────────────────────────
 
 .PHONY: infra/init
@@ -148,6 +152,16 @@ docker/build-slurmd-cuda: ## Build custom slurmd image with CUDA/NCCL (NVIDIA)
 docker/push-slurmd: ## Push slurmd image (login to your registry first)
 	docker push $(SLURMD_IMAGE)
 
+.PHONY: docker/build-login
+docker/build-login: ## Build custom login image with dev tools (vim, nano, git, python3, sudo, curl, wget, less)
+	@[ -n "$(LOGIN_IMAGE)" ] || { echo "ERROR: LOGIN_IMAGE is not set. export LOGIN_IMAGE=ghcr.io/yourorg/slurm-login:25.11"; exit 1; }
+	docker build -t $(LOGIN_IMAGE) docker/login/
+
+.PHONY: docker/push-login
+docker/push-login: ## Push custom login image (login to your registry first)
+	@[ -n "$(LOGIN_IMAGE)" ] || { echo "ERROR: LOGIN_IMAGE is not set. export LOGIN_IMAGE=ghcr.io/yourorg/slurm-login:25.11"; exit 1; }
+	docker push $(LOGIN_IMAGE)
+
 # ── Fabric (Multus + NetworkAttachmentDefinitions) ───────────────────────────
 
 .PHONY: fabric/install-multus
@@ -233,13 +247,16 @@ slinky/configure: ## Generate values-slurm.yaml from template using Terraform ou
 	GPU_NODE_COUNT=$${GPU_NODE_COUNT:-$$($(TF) output -raw gpu_node_count)} && \
 	IMG_REPO=$$(echo '$(SLURMD_IMAGE)' | sed 's|:[^:]*$$||') && \
 	IMG_TAG=$$(echo '$(SLURMD_IMAGE)' | sed 's|.*:||') && \
+	LOGIN_IMG=$${LOGIN_IMAGE:-ghcr.io/slinkyproject/login:25.11.5-ubuntu24.04} && \
+	LOGIN_REPO=$$(echo "$$LOGIN_IMG" | sed 's|:[^:]*$$||') && \
+	LOGIN_TAG=$$(echo "$$LOGIN_IMG" | sed 's|.*:||') && \
 	if [ -f helm/slinky/.gres-conf-line ]; then \
 		GRES_LINE=$$(cat helm/slinky/.gres-conf-line); \
 	else \
 		echo "WARNING: helm/slinky/.gres-conf-line not found. Run 'make gpu/discover-gres' first." >&2; \
 		GRES_LINE="Name=gpu File=/dev/UNKNOWN — run: make gpu/discover-gres"; \
 	fi && \
-	sed "s|__DB_HOST__|$$DB_HOST|g; s|__GPU_VENDOR__|$$GPU_VENDOR|g; s|__GPU_TAINT_KEY__|$$GPU_TAINT_KEY|g; s|__GPU_NODE_COUNT__|$$GPU_NODE_COUNT|g; s|__SLURMD_IMAGE_REPO__|$$IMG_REPO|g; s|__SLURMD_IMAGE_TAG__|$$IMG_TAG|g; s|__GRES_CONF_LINE__|$$GRES_LINE|g" \
+	sed "s|__DB_HOST__|$$DB_HOST|g; s|__GPU_VENDOR__|$$GPU_VENDOR|g; s|__GPU_TAINT_KEY__|$$GPU_TAINT_KEY|g; s|__GPU_NODE_COUNT__|$$GPU_NODE_COUNT|g; s|__SLURMD_IMAGE_REPO__|$$IMG_REPO|g; s|__SLURMD_IMAGE_TAG__|$$IMG_TAG|g; s|__LOGIN_IMAGE_REPO__|$$LOGIN_REPO|g; s|__LOGIN_IMAGE_TAG__|$$LOGIN_TAG|g; s|__GRES_CONF_LINE__|$$GRES_LINE|g" \
 		helm/slinky/values-slurm.yaml.tpl > helm/slinky/values-slurm.yaml
 
 .PHONY: slinky/create-pull-secret
