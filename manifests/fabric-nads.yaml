@@ -6,6 +6,7 @@ apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
   name: roce-net-fabric0
+  namespace: slurm
 spec:
   config: '{
       "cniVersion": "0.3.1",
@@ -17,6 +18,7 @@ apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
   name: roce-net-fabric1
+  namespace: slurm
 spec:
   config: '{
       "cniVersion": "0.3.1",
@@ -28,6 +30,7 @@ apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
   name: roce-net-fabric2
+  namespace: slurm
 spec:
   config: '{
       "cniVersion": "0.3.1",
@@ -39,6 +42,7 @@ apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
   name: roce-net-fabric3
+  namespace: slurm
 spec:
   config: '{
       "cniVersion": "0.3.1",
@@ -50,6 +54,7 @@ apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
   name: roce-net-fabric4
+  namespace: slurm
 spec:
   config: '{
       "cniVersion": "0.3.1",
@@ -61,6 +66,7 @@ apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
   name: roce-net-fabric5
+  namespace: slurm
 spec:
   config: '{
       "cniVersion": "0.3.1",
@@ -72,6 +78,7 @@ apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
   name: roce-net-fabric6
+  namespace: slurm
 spec:
   config: '{
       "cniVersion": "0.3.1",
@@ -83,6 +90,7 @@ apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
   name: roce-net-fabric7
+  namespace: slurm
 spec:
   config: '{
       "cniVersion": "0.3.1",
@@ -94,6 +102,7 @@ apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
   name: roce-net-fabric8
+  namespace: slurm
 spec:
   config: '{
       "cniVersion": "0.3.1",
@@ -105,6 +114,7 @@ apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
   name: roce-net-fabric9
+  namespace: slurm
 spec:
   config: '{
       "cniVersion": "0.3.1",
@@ -116,6 +126,7 @@ apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
   name: roce-net-fabric10
+  namespace: slurm
 spec:
   config: '{
       "cniVersion": "0.3.1",
@@ -127,6 +138,7 @@ apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
   name: roce-net-fabric11
+  namespace: slurm
 spec:
   config: '{
       "cniVersion": "0.3.1",
@@ -138,6 +150,7 @@ apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
   name: roce-net-fabric12
+  namespace: slurm
 spec:
   config: '{
       "cniVersion": "0.3.1",
@@ -149,6 +162,7 @@ apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
   name: roce-net-fabric13
+  namespace: slurm
 spec:
   config: '{
       "cniVersion": "0.3.1",
@@ -160,6 +174,7 @@ apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
   name: roce-net-fabric14
+  namespace: slurm
 spec:
   config: '{
       "cniVersion": "0.3.1",
@@ -171,6 +186,7 @@ apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
   name: roce-net-fabric15
+  namespace: slurm
 spec:
   config: '{
       "cniVersion": "0.3.1",
