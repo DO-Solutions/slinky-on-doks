@@ -89,6 +89,21 @@ docker push registry.digitalocean.com/<your-registry>/slurmd-cuda:25.11
 
 See [docker/slurmd-cuda/Dockerfile](../docker/slurmd-cuda/Dockerfile) for full build details — CUDA version selection (12.9 minimum for B300 native sm_103 codegen), the `nccl-tests` build flags, and the RDMA userspace packages baked in.
 
+### Custom Login Container Image
+
+The upstream Slinky login image ships only the Slurm client commands (`sinfo`, `srun`, `sbatch`, …). It has no editor, `git`, `python3`, `sudo`, `curl`, or `wget` — so once logged in, users can't pull a codebase, edit a file, run a script, or install software. The `docker/login/Dockerfile` layers these core developer tools (`vim`, `nano`, `git`, `python3`/`pip`, `sudo`, `curl`, `wget`, `less`) on top of the upstream login image.
+
+Build and push the image (DOCR example):
+
+```bash
+docker build -t registry.digitalocean.com/<your-registry>/slurm-login:25.11 docker/login/
+
+doctl registry login
+docker push registry.digitalocean.com/<your-registry>/slurm-login:25.11
+```
+
+This image is optional — if you skip it, the LoginSet uses the upstream `ghcr.io/slinkyproject/login` image (Slurm clients only). See [docker/login/Dockerfile](../docker/login/Dockerfile) for build details.
+
 ---
 
 ## 2. Namespace Layout
@@ -443,6 +458,12 @@ loginsets:
   slinky:
     enabled: true
     login:
+      # Custom login image with developer tools (built in Section 1).
+      # Omit this image block to fall back to the upstream login image
+      # (ghcr.io/slinkyproject/login), which ships only Slurm client commands.
+      image:
+        repository: registry.digitalocean.com/<your-registry>/slurm-login
+        tag: "25.11"
       volumeMounts:
         - name: shared-nfs
           mountPath: /shared

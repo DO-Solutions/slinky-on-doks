@@ -62,6 +62,7 @@ GPU workers run a custom slurmd image that includes the GPU communication librar
 |----------|----------|-------------|
 | `DIGITALOCEAN_TOKEN` | Yes | DigitalOcean API token (used by Terraform) |
 | `SLURMD_IMAGE` | Yes | Full image reference, e.g. `ghcr.io/your-org/slurmd-cuda:25.11-cuda12.6` |
+| `LOGIN_IMAGE` | No | Custom login image with developer tools, e.g. `ghcr.io/your-org/slurm-login:25.11`. Falls back to the upstream `ghcr.io/slinkyproject/login` image when unset |
 | `REGISTRY_USER` | Yes | Registry username for image pull secret |
 | `REGISTRY_PASSWORD` | Yes | Registry password/token for image pull secret |
 
@@ -190,12 +191,31 @@ make docker/push-slurmd
 
 See [docker/slurmd-rocm/README.md](docker/slurmd-rocm/README.md) for build details.
 
+## Custom Login Image
+
+The upstream Slinky login image ships only the Slurm client commands (`sinfo`, `srun`, `sbatch`, …). It has **no editor, `git`, `python3`, `sudo`, `curl`, or `wget`** — so once logged in, users can't pull a codebase, edit a file, run a script, or install software. The `docker/login/Dockerfile` layers these core developer tools on top of the upstream image:
+
+- `vim`, `nano` — editors
+- `git` — clone/pull codebases
+- `python3`, `python3-pip` — run and install Python
+- `sudo` (passwordless, PoC-grade) — install packages with `apt`
+- `curl`, `wget`, `less` — fetch and page files
+
+```bash
+export LOGIN_IMAGE=ghcr.io/your-org/slurm-login:25.11
+make docker/build-login
+make docker/push-login
+```
+
+`LOGIN_IMAGE` is optional — when unset, the Slurm chart uses the upstream `ghcr.io/slinkyproject/login` image. When set, `make slinky/configure` wires it into the LoginSet. Keep it in the same registry as `SLURMD_IMAGE` so the existing pull secret covers both. See [docker/login/Dockerfile](docker/login/Dockerfile) for build details.
+
 ## Quick Start
 
 ```bash
 # 1. Set your slurmd image
 export SLURMD_IMAGE=ghcr.io/your-org/slurmd-cuda:25.11-cuda12.6   # NVIDIA
 # export SLURMD_IMAGE=ghcr.io/your-org/slurmd-rocm:25.11           # AMD
+export LOGIN_IMAGE=ghcr.io/your-org/slurm-login:25.11             # optional: login pod with dev tools
 
 # 2. Deploy everything (infra, kubeconfig, prereqs, NFS, fabric, operator, Slurm)
 make up
@@ -395,6 +415,8 @@ make help
 | `docker/build-slurmd` | Build custom slurmd image with ROCm/RCCL (AMD) |
 | `docker/build-slurmd-cuda` | Build custom slurmd image with CUDA/NCCL (NVIDIA) |
 | `docker/push-slurmd` | Push slurmd image to registry |
+| `docker/build-login` | Build custom login image with developer tools |
+| `docker/push-login` | Push custom login image to registry |
 | **Fabric** | |
 | `fabric/install` | Install Multus + fabric NADs |
 | `fabric/install-multus` | Install Multus CNI plugin |
